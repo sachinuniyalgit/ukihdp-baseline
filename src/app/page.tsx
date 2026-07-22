@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { baselineQuestionnaire } from "@/config/questionnaire-outline";
 import { useAuth } from "@/components/auth/auth-provider";
 
-const navigation = ["Overview", "New survey", "My drafts", "Review queue", "Field progress", "GIS monitoring", "Results", "Reports", "Master data"];
+const navigation = ["Overview", "New survey", "My drafts", "Review queue", "Field progress", "GIS monitoring", "Results", "Reports", "Users & roles", "Master data"];
 const districts = ["Pithoragarh", "Nainital", "Uttarkashi", "Tehri Garhwal"];
 
 function subscribeToConnectivity(callback: () => void) {
@@ -27,7 +27,7 @@ export default function Home() {
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span>U</span><div><b>UKIHDP</b><small>Baseline assessment</small></div></div>
-      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => item === "New survey" ? router.push("/survey/new") : item === "My drafts" ? router.push("/drafts") : item === "Review queue" ? router.push("/review") : item === "Master data" ? router.push("/admin/master-data") : setActive(item)}>{item}</button>)}</nav>
+      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => item === "New survey" ? router.push("/survey/new") : item === "My drafts" ? router.push("/drafts") : item === "Review queue" ? router.push("/review") : item === "Users & roles" ? router.push(auth.profile?.role === "admin" ? "/admin/users" : "/login") : item === "Master data" ? router.push("/admin/master-data") : setActive(item)}>{item}</button>)}</nav>
       <div className="sidebar-foot"><i /> Field workspace ready<br/><small>{auth.demoMode ? "Local preview mode" : "Secure central database"}</small></div>
     </aside>
 
@@ -42,7 +42,7 @@ export default function Home() {
 
       <section className="intro-card">
         <div><p className="green-label">{auth.demoMode ? "Local preview ready" : "Secure database connected"}</p><h2>A reliable field-to-evidence workflow</h2><p>Mobile data collection, role-based access, offline drafts, secure synchronization, review decisions, and configurable survey instruments work as one connected flow.</p></div>
-        <button className="primary" onClick={() => router.push("/survey/new")}>Start questionnaire <span aria-hidden>&rarr;</span></button>
+        <div className="intro-actions"><button className="primary" onClick={() => router.push("/survey/new")}>Start questionnaire <span aria-hidden>&rarr;</span></button>{auth.profile?.role === "admin" && <button className="secondary-action" onClick={() => router.push("/admin/users")}>Manage users</button>}</div>
       </section>
 
       {showOutline && <section className="outline-panel" aria-label="Questionnaire outline">

@@ -21,7 +21,7 @@ This repository contains the implemented household and FPO questionnaire foundat
 3. Conflict-safe synchronization using client IDs and server revisions.
 4. Reviewer transitions for submitted, under-review, returned, and approved records, with review-event history.
 5. Database policies that isolate enumerator records and reserve management actions for Reviewer/Admin roles.
-6. Race-safe, one-time initial Administrator claim; later accounts default to inactive Enumerator profiles.
+6. Race-safe, one-time initial Administrator claim; later accounts request Administrator, Reviewer, or Enumerator access and remain inactive until Administrator approval.
 
 ## Planned modules
 

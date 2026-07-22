@@ -30,11 +30,12 @@ Without Supabase credentials the application intentionally uses local preview mo
    - `supabase/migrations/0002_crop_master_and_relations.sql`
    - `supabase/migrations/0003_auth_sync_and_rls.sql`
    - `supabase/migrations/0004_secure_admin_bootstrap.sql`
+   - `supabase/migrations/0005_role_requests_and_account_approval.sql`
 3. Copy `.env.example` to `.env.local` and insert the project's public URL and publishable key. Older projects can still use `NEXT_PUBLIC_SUPABASE_ANON_KEY` as a fallback.
 4. Restart the application and open `/login`.
-5. Use the one-time **Create first Administrator** form. If email confirmation is enabled, confirm the Supabase email and then sign in.
+5. Use the one-time **Administrator setup** form. Choose the Administrator password in the form; the application deliberately has no hard-coded or shared default password. If email confirmation is enabled, confirm the Supabase email and then sign in.
 
-The first authenticated owner can claim the Administrator role only while no active Administrator exists. The database closes this bootstrap path permanently after the first claim. Later users receive the Enumerator role in an inactive state until an Administrator authorizes them. Row-level security prevents enumerators from viewing other enumerators' submissions and restricts review actions to Reviewer/Admin accounts.
+The first authenticated owner can claim the Administrator role only while no active Administrator exists. The database closes this bootstrap path permanently after the first claim. Later users request Administrator, Reviewer, or Enumerator access during registration and remain inactive until an Administrator approves the requested role from **Dashboard → Users & roles**. Row-level security prevents enumerators from viewing other enumerators' submissions and restricts review actions to Reviewer/Admin accounts.
 
 Never put the Supabase service-role key in `.env.local` or browser code.
 
