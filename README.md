@@ -29,7 +29,7 @@ Without Supabase credentials the application intentionally uses local preview mo
    - `supabase/migrations/0001_foundation.sql`
    - `supabase/migrations/0002_crop_master_and_relations.sql`
    - `supabase/migrations/0003_auth_sync_and_rls.sql`
-3. Copy `.env.example` to `.env.local` and insert the project's public URL and anon key.
+3. Copy `.env.example` to `.env.local` and insert the project's public URL and publishable key. Older projects can still use `NEXT_PUBLIC_SUPABASE_ANON_KEY` as a fallback.
 4. Create the first user in Supabase Authentication.
 5. Promote only the approved project owner using the one-time SQL statement documented at the end of migration `0003`.
 6. Restart the application and sign in at `/login`.
