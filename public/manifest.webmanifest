@@ -1,0 +1,9 @@
+{
+  "name": "UKIHDP Baseline Assessment",
+  "short_name": "UKIHDP Survey",
+  "description": "Offline-ready field data collection and baseline monitoring.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fa",
+  "theme_color": "#16324f"
+}
