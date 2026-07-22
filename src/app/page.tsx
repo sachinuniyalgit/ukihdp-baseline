@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { baselineQuestionnaire } from "@/config/questionnaire-outline";
 
 const navigation = ["Overview", "New survey", "My drafts", "Review queue", "Field progress", "GIS monitoring", "Results", "Reports"];
 const districts = ["Pithoragarh", "Nainital", "Uttarkashi", "Tehri Garhwal"];
 
 export default function Home() {
+  const router = useRouter();
   const [active, setActive] = useState("Overview");
   const [online, setOnline] = useState(true);
   const showOutline = active === "New survey";
@@ -14,7 +16,7 @@ export default function Home() {
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span>U</span><div><b>UKIHDP</b><small>Baseline assessment</small></div></div>
-      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}>{item}</button>)}</nav>
+      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => item === "New survey" ? router.push("/survey/new") : setActive(item)}>{item}</button>)}</nav>
       <div className="sidebar-foot"><i /> Foundation workspace<br/><small>Questionnaire questions intentionally pending</small></div>
     </aside>
 
@@ -29,7 +31,7 @@ export default function Home() {
 
       <section className="intro-card">
         <div><p className="green-label">Foundation ready</p><h2>A reliable field-to-evidence workflow</h2><p>Mobile data collection, secure roles, offline drafts, and a configurable survey engine are ready for the finalized questionnaire.</p></div>
-        <button className="primary" onClick={() => setActive("New survey")}>Open survey structure <span aria-hidden>&rarr;</span></button>
+        <button className="primary" onClick={() => router.push("/survey/new")}>Start questionnaire <span aria-hidden>&rarr;</span></button>
       </section>
 
       {showOutline && <section className="outline-panel" aria-label="Questionnaire outline">
@@ -55,7 +57,7 @@ export default function Home() {
         <article className="panel map"><header><div><p>Spatial monitoring</p><h2>GIS foundation</h2></div><b>GPS protected</b></header><div className="map-view"><div className="contours" /><span className="pin one">&#9679;</span><span className="pin two">&#9679;</span><span className="pin three">&#9679;</span><div>Approved GPS-enabled survey points will appear here without exposing household identities.</div></div></article>
       </section>
 
-      <section className="next"><div><p>Next build stage</p><h2>Configure the exact questionnaire</h2><span>Question wording, answer options, repeatable rosters, skip logic, recall periods, validation, and indicator mapping will be added section by section.</span></div><button onClick={() => setActive("New survey")}>View structure</button></section>
+      <section className="next"><div><p>Questionnaire available</p><h2>Household and FPO instruments implemented</h2><span>Field options, repeatable rosters, skip logic, calculations, GPS, local drafts, and quality-control fields are ready for configuration testing.</span></div><button onClick={() => router.push("/survey/new")}>Open questionnaire</button></section>
     </section>
   </main>;
 }
