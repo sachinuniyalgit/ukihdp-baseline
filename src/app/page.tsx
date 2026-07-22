@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { baselineQuestionnaire } from "@/config/questionnaire-outline";
 
-const navigation = ["Overview", "New survey", "My drafts", "Review queue", "Field progress", "GIS monitoring", "Results", "Reports"];
+const navigation = ["Overview", "New survey", "My drafts", "Review queue", "Field progress", "GIS monitoring", "Results", "Reports", "Master data"];
 const districts = ["Pithoragarh", "Nainital", "Uttarkashi", "Tehri Garhwal"];
 
 export default function Home() {
@@ -16,7 +16,7 @@ export default function Home() {
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span>U</span><div><b>UKIHDP</b><small>Baseline assessment</small></div></div>
-      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => item === "New survey" ? router.push("/survey/new") : setActive(item)}>{item}</button>)}</nav>
+      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => item === "New survey" ? router.push("/survey/new") : item === "Master data" ? router.push("/admin/master-data") : setActive(item)}>{item}</button>)}</nav>
       <div className="sidebar-foot"><i /> Foundation workspace<br/><small>Questionnaire questions intentionally pending</small></div>
     </aside>
 

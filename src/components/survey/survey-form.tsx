@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { householdQuestionnaire, institutionalQuestionnaire } from "@/config/questionnaires";
 import { blocksForDistrict, findFpo, fposForLocation, projectFpos, projectMaster } from "@/config/project-master";
+import type { AdminMasterData } from "@/lib/admin-master-data";
+import { useAdminMasterData } from "@/hooks/use-admin-master-data";
 import { queueSurveyForSync, saveSurveyDraft } from "@/lib/offline-drafts";
 import type { AnswerValue, QuestionnaireDefinition, QuestionDefinition, VisibilityRule } from "@/lib/survey/types";
+import { FocusCropModules } from "@/components/survey/focus-crop-modules";
 
 type AnswerMap = Record<string, AnswerValue>;
 type Instrument = "household" | "institutional";
@@ -72,10 +75,16 @@ export function SurveyForm() {
   const [startedAt, setStartedAt] = useState(() => new Date().toISOString());
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error">("saved");
   const [notice, setNotice] = useState("");
+  const [linkedCropContext, setLinkedCropContext] = useState<Record<string, string>>({});
   const online = useSyncExternalStore(subscribeToConnectivity, () => navigator.onLine, () => true);
+  const adminMasterData = useAdminMasterData();
 
   const configuredFields = useMemo(() => countConfiguredFields(questionnaire), [questionnaire]);
   const selectedFpo = findFpo(String(responses[instrument === "household" ? "1.7" : "11.1"] ?? ""));
+  const configuredMapping = adminMasterData.fpoFocusMappings.find((item) => item.fpoName === selectedFpo?.name);
+  const configuredFocusCrops = configuredMapping ? configuredMapping.status === "Confirmed" ? configuredMapping.cropNames : [] : selectedFpo?.focusCrops ?? [];
+  const allCropRoster = (responses["3A.1"] as AnswerMap[] | undefined) ?? [];
+  const matchedFocusCropNames = [...new Set(allCropRoster.map((item) => String(item["3A.2"] === "Other - Specify" ? item["3A.2a"] : item["3A.2"] ?? "")).filter((cropName) => configuredFocusCrops.some((focusCrop) => focusCrop.toLowerCase() === cropName.toLowerCase())))];
 
   const optionsForQuestion = (question: QuestionDefinition) => {
     if (question.id === "1.5") return projectMaster.districts;
@@ -83,7 +92,8 @@ export function SurveyForm() {
     if (question.id === "1.7") return fposForLocation(String(responses["1.5"] ?? ""), String(responses["1.6"] ?? "")).map((item) => item.name);
     if (question.id === "1.8") return selectedFpo ? [...selectedFpo.villages, "Other - Specify"] : [];
     if (question.id === "11.1") return projectFpos.map((item) => item.name);
-    if (question.id === "3.1a") return selectedFpo ? [...selectedFpo.focusCrops, "Other"] : ["Other"];
+    if (question.id === "3A.2") return [...adminMasterData.crops.filter((item) => item.active).map((item) => item.name), "Other - Specify"];
+    if (question.id === "3.1a") return [...adminMasterData.crops.filter((item) => item.active).map((item) => item.name), "Other"];
     return question.options;
   };
 
@@ -111,7 +121,8 @@ export function SurveyForm() {
       return gps?.accuracy ? `${Math.round(Number(gps.accuracy))} metres` : "Capture GPS first";
     }
     if (question.id === "10.8") {
-      return projectMaster.youthAgeRange ? `${projectMaster.youthAgeRange.min}-${projectMaster.youthAgeRange.max} years` : "Pending approved youth age range";
+      const youth = adminMasterData.youthAgeDefinition;
+      return youth.status === "Confirmed" && youth.value.minimumAge !== null && youth.value.maximumAge !== null ? `${youth.value.minimumAge}-${youth.value.maximumAge} years` : "Pending Project Confirmation";
     }
     if (question.calculation === "sum" || question.calculation === "cost_total") {
       const total = (question.dependsOn ?? []).reduce((sum, id) => sum + sumNumbers(context[id]), 0);
@@ -121,9 +132,9 @@ export function SurveyForm() {
       const area = context["3.3"] as { value?: unknown; unit?: string } | undefined;
       const production = context["3.5"] as { value?: unknown; unit?: string } | undefined;
       if (!area?.value || !production?.value) return "Calculated after area and production are entered";
-      if (area.unit === "Nali") return "Pending approved Nali conversion factor";
+      if (area.unit === "Nali" && adminMasterData.landUnitConversion.value.naliToAcre === null) return "Pending approved Nali conversion factor";
       const kilograms = numberValue(production) * (production.unit === "Tonne" ? 1000 : production.unit === "Quintal" ? 100 : 1);
-      const acres = numberValue(area) * (area.unit === "Hectare" ? 2.47105 : 1);
+      const acres = numberValue(area) * (area.unit === "Hectare" ? 2.47105 : area.unit === "Nali" ? Number(adminMasterData.landUnitConversion.value.naliToAcre) : 1);
       if (!acres) return "Area must be greater than zero";
       const perAcre = kilograms / acres;
       return `${perAcre.toFixed(1)} kg/acre | ${(perAcre * 2.47105).toFixed(1)} kg/ha`;
@@ -137,6 +148,22 @@ export function SurveyForm() {
       const crops = responses["3.1"] as AnswerMap[] | undefined;
       if (!crops?.length) return "Pending crop roster";
       return crops.some((crop) => selectedFpo.focusCrops.some((item) => item.toLowerCase() === String(crop["3.1a"] ?? "").toLowerCase())) ? "Grower" : "Non-grower";
+    }
+    if (question.calculation === "crop_category") {
+      const cropName = String(context["3A.2"] === "Other - Specify" ? context["3A.2a"] : context["3A.2"] ?? "");
+      const crop = adminMasterData.crops.find((item) => item.name.toLowerCase() === cropName.toLowerCase());
+      return crop ? `${crop.category} / ${crop.cropType}` : cropName ? "Pending Admin classification" : "Select crop first";
+    }
+    if (question.calculation === "youth_status") {
+      const setting = adminMasterData.youthAgeDefinition;
+      const age = numberValue(context["1A.2"]);
+      if (setting.status !== "Confirmed" || setting.value.minimumAge === null || setting.value.maximumAge === null) return "Pending Project Confirmation";
+      if (!hasValue(context["1A.2"])) return "Enter age first";
+      return age >= setting.value.minimumAge && age <= setting.value.maximumAge ? "Youth" : "Not youth";
+    }
+    if (question.calculation === "focus_crop_matches") {
+      if (!selectedFpo) return "Select FPO first";
+      return matchedFocusCropNames.length ? `Matched: ${matchedFocusCropNames.join(", ")}` : "No matching focus crop cultivated";
     }
     if (question.calculation === "interview_duration") {
       return "Calculated automatically when submitted";
@@ -238,6 +265,32 @@ export function SurveyForm() {
 
   const consentDeclined = instrument === "household" && responses["1.1"] === "No - Consent Not Provided";
   const current = questionnaire.sections[activeSection];
+  const focusCropRecords = (responses["3B.2"] as AnswerMap[] | undefined) ?? [];
+  const usesFocusCropContext = ["inputs-extension", "processing", "marketing"].includes(current.id) && focusCropRecords.length > 0;
+  const linkedStoreKey = `linked:${current.id}`;
+  const linkedRecords = (responses[linkedStoreKey] as AnswerMap[] | undefined) ?? [];
+  const activeFocusCropId = linkedCropContext[current.id] ?? String(focusCropRecords[0]?.focusCropId ?? "");
+  const activeFocusCrop = focusCropRecords.find((item) => String(item.focusCropId) === activeFocusCropId) ?? focusCropRecords[0];
+  const activeLinkedRecord = linkedRecords.find((item) => String(item.focusCropId) === String(activeFocusCrop?.focusCropId));
+  const currentResponseContext = usesFocusCropContext ? ((activeLinkedRecord?.answers as AnswerMap | undefined) ?? {}) : responses;
+  const updateCurrentResponse = (id: string, value: AnswerValue) => {
+    if (!usesFocusCropContext || !activeFocusCrop) return updateResponse(id, value);
+    setSaveState("saving");
+    setResponses((allResponses) => {
+      const existing = (allResponses[linkedStoreKey] as AnswerMap[] | undefined) ?? [];
+      const focusCropId = String(activeFocusCrop.focusCropId);
+      const record = existing.find((item) => String(item.focusCropId) === focusCropId);
+      const nextRecord: AnswerMap = {
+        ...(record ?? {}),
+        focusCropId,
+        cropMasterId: String(activeFocusCrop.cropMasterId ?? ""),
+        cropName: String(activeFocusCrop.cropName ?? ""),
+        answers: { ...((record?.answers as AnswerMap | undefined) ?? {}), [id]: value },
+      };
+      return { ...allResponses, [linkedStoreKey]: record ? existing.map((item) => String(item.focusCropId) === focusCropId ? nextRecord : item) : [...existing, nextRecord] };
+    });
+    setNotice("");
+  };
   const answeredCount = questionnaire.sections.flatMap((item) => item.questions).filter((question) => question.inputType !== "automatic" && hasValue(responses[question.id])).length;
   const progress = Math.round((answeredCount / Math.max(1, questionnaire.sections.flatMap((item) => item.questions).filter((question) => question.inputType !== "automatic").length)) * 100);
 
@@ -265,9 +318,9 @@ export function SurveyForm() {
 
         {selectedFpo && <div className="fpo-context"><div><span>Selected FPO</span><strong>{selectedFpo.name}</strong></div><div><span>Block / District</span><strong>{selectedFpo.block} / {selectedFpo.district}</strong></div><div><span>CBBO</span><strong>{selectedFpo.cbbo}</strong></div><div><span>Focus crop(s)</span><strong>{selectedFpo.cropNote ?? selectedFpo.focusCrops.join(", ")}</strong></div><div><span>Configured villages</span><strong>{selectedFpo.villages.length}</strong></div></div>}
 
-        {consentDeclined ? <div className="consent-stop"><strong>Interview ended</strong><p>The respondent did not provide consent. Do not collect any additional information. Save this record only as a consent refusal if required by the approved protocol.</p><button onClick={saveNow}>Save consent outcome</button></div> : <div className="question-list">
-          {current.questions.map((question) => isVisible(question, responses) ? <QuestionField key={question.id} question={question} resolvedOptions={optionsForQuestion(question)} value={question.inputType === "automatic" ? automaticValue(question, responses) : responses[question.id]} update={(value) => updateResponse(question.id, value)} isVisible={isVisible} automaticValue={automaticValue} optionsForQuestion={optionsForQuestion} /> : null)}
-        </div>}
+        {consentDeclined ? <div className="consent-stop"><strong>Interview ended</strong><p>The respondent did not provide consent. Do not collect any additional information. Save this record only as a consent refusal if required by the approved protocol.</p><button onClick={saveNow}>Save consent outcome</button></div> : <>{usesFocusCropContext && <div className="linked-crop-context"><div><span>Linked focus-crop record</span><strong>Complete this section separately for each automatically identified crop.</strong></div><nav>{focusCropRecords.map((crop) => <button type="button" className={String(crop.focusCropId) === String(activeFocusCrop?.focusCropId) ? "active" : ""} key={String(crop.focusCropId)} onClick={() => setLinkedCropContext((state) => ({ ...state, [current.id]: String(crop.focusCropId) }))}><b>{String(crop.cropName)}</b><small>{String(crop.focusCropId)}</small></button>)}</nav></div>}<div className="question-list">
+          {current.questions.map((question) => isVisible(question, currentResponseContext) ? <QuestionField key={`${activeFocusCropId}-${question.id}`} question={question} resolvedOptions={optionsForQuestion(question)} value={question.inputType === "automatic" ? automaticValue(question, currentResponseContext) : currentResponseContext[question.id]} update={(value) => updateCurrentResponse(question.id, value)} isVisible={isVisible} automaticValue={automaticValue} optionsForQuestion={optionsForQuestion} matchedFocusCropNames={matchedFocusCropNames} adminMasterData={adminMasterData} draftId={draftId} /> : null)}
+        </div></>}
 
         {notice && <div className="form-notice" role="status">{notice}</div>}
 
@@ -288,9 +341,12 @@ interface QuestionFieldProps {
   isVisible: (question: QuestionDefinition, context: AnswerMap) => boolean;
   automaticValue: (question: QuestionDefinition, context: AnswerMap) => string;
   optionsForQuestion: (question: QuestionDefinition) => string[] | undefined;
+  matchedFocusCropNames: string[];
+  adminMasterData: AdminMasterData;
+  draftId: string;
 }
 
-function QuestionField({ question, resolvedOptions, value, update, isVisible, automaticValue, optionsForQuestion }: QuestionFieldProps) {
+function QuestionField({ question, resolvedOptions, value, update, isVisible, automaticValue, optionsForQuestion, matchedFocusCropNames, adminMasterData, draftId }: QuestionFieldProps) {
   const fieldId = `field-${question.id.replaceAll(".", "-")}`;
   const options = resolvedOptions ?? question.options ?? [];
   const wrapper = (content: React.ReactNode) => <article className={`question ${question.inputType === "repeat_group" ? "repeat-question" : ""}`}>
@@ -332,9 +388,12 @@ function QuestionField({ question, resolvedOptions, value, update, isVisible, au
     };
     return wrapper(<div className="gps-field"><button type="button" onClick={captureGps}>{gps.latitude ? "Recapture GPS" : "Capture GPS"}</button>{gps.latitude ? <span>{Number(gps.latitude).toFixed(6)}, {Number(gps.longitude).toFixed(6)} | accuracy {Math.round(Number(gps.accuracy))} m</span> : <span>No location captured</span>}</div>);
   }
+  if (question.inputType === "focus_crop_modules") {
+    return wrapper(<FocusCropModules matchedCropNames={matchedFocusCropNames} value={Array.isArray(value) ? value as AnswerMap[] : []} update={update} masterData={adminMasterData} draftId={draftId} />);
+  }
   if (question.inputType === "repeat_group") {
     const entries = Array.isArray(value) ? value as AnswerMap[] : [];
-    return wrapper(<div className="repeat-list">{entries.map((entry, index) => <section className="repeat-card" key={`${question.id}-${index}`}><header><strong>{question.repeatLabel ?? "record"} {index + 1}</strong><button type="button" onClick={() => update(entries.filter((_, entryIndex) => entryIndex !== index))}>Remove</button></header>{question.fields?.map((field) => isVisible(field, entry) ? <QuestionField key={field.id} question={field} resolvedOptions={optionsForQuestion(field)} value={field.inputType === "automatic" ? automaticValue(field, entry) : entry[field.id]} update={(fieldValue) => update(entries.map((item, entryIndex) => entryIndex === index ? { ...item, [field.id]: fieldValue } : item))} isVisible={isVisible} automaticValue={automaticValue} optionsForQuestion={optionsForQuestion} /> : null)}</section>)}<button type="button" className="add-repeat" onClick={() => update([...entries, {}])}>+ Add {question.repeatLabel ?? "record"}</button></div>);
+    return wrapper(<div className="repeat-list">{entries.map((entry, index) => <section className="repeat-card" key={`${question.id}-${index}`}><header><strong>{question.repeatLabel ?? "record"} {index + 1}</strong><button type="button" onClick={() => update(entries.filter((_, entryIndex) => entryIndex !== index))}>Remove</button></header>{question.fields?.map((field) => isVisible(field, entry) ? <QuestionField key={field.id} question={field} resolvedOptions={optionsForQuestion(field)} value={field.inputType === "automatic" ? automaticValue(field, entry) : entry[field.id]} update={(fieldValue) => update(entries.map((item, entryIndex) => entryIndex === index ? { ...item, [field.id]: fieldValue } : item))} isVisible={isVisible} automaticValue={automaticValue} optionsForQuestion={optionsForQuestion} matchedFocusCropNames={matchedFocusCropNames} adminMasterData={adminMasterData} draftId={draftId} /> : null)}</section>)}<button type="button" className="add-repeat" onClick={() => update([...entries, {}])}>+ Add {question.repeatLabel ?? "record"}</button></div>);
   }
   return wrapper(<div className="automatic-value">Input type pending</div>);
 }

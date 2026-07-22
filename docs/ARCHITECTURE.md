@@ -2,7 +2,7 @@
 
 ## Current scope
 
-This repository contains the application foundation only. It deliberately does not contain the final question wording or real project records.
+This repository contains the implemented household and FPO questionnaire foundation. It contains no real respondent or household records.
 
 ## Main layers
 
@@ -10,18 +10,18 @@ This repository contains the application foundation only. It deliberately does n
 - **Configurable questionnaire model:** versioned sections and questions instead of hard-coded form pages.
 - **Offline field store:** IndexedDB-backed drafts with an explicit queue status for later synchronization.
 - **PWA shell:** installable manifest and production service worker for basic application-shell availability.
-- **Database migration:** Supabase/PostgreSQL-ready roles, questionnaire, submission, response, and sync tables.
+- **Focus-crop engine:** short all-crop roster, automatic FPO matching, annual crop cycles, perennial orchard profiles, calculations, and linked Sections 4-6.
+- **Controlled master data:** configurable youth definition, Nali conversion, crops, varieties, FPO mappings, and audit history.
+- **Database migrations:** Supabase/PostgreSQL-ready roles, questionnaire, submission, response, sync, crop-master, crop-cycle, and linked-response tables.
 
 ## Planned modules
 
-1. Exact household questionnaire for Sections 1-10.
-2. Separate Section 11 FPO institutional instrument.
-3. Authentication and assignment rules for Admin, Reviewer, and Enumerator.
-4. Draft, submit, review, return, correct, and approve workflow.
-5. Conflict-safe offline synchronization.
-6. Privacy-protected GIS and GPS survey monitoring.
-7. Verified-data dashboards and treatment/control analysis.
-8. Export and automated standard reports.
+1. Connect Supabase authentication and assignment rules for Admin, Reviewer, and Enumerator.
+2. Connect the current draft/queue UI to server-side submit, review, return, correct, and approve operations.
+3. Implement conflict-safe synchronization against server revisions.
+4. Build privacy-protected GIS and GPS survey monitoring.
+5. Build verified-data dashboards and treatment/control analysis.
+6. Add export and automated standard reports.
 
 ## Data rule
 

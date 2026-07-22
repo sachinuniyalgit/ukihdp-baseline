@@ -27,6 +27,7 @@ export type QuestionInputType =
   | "automatic"
   | "gps"
   | "photo"
+  | "focus_crop_modules"
   | "repeat_group";
 
 export type AnswerValue =
@@ -69,7 +70,10 @@ export interface QuestionDefinition {
     | "loss_percentage"
     | "interview_duration"
     | "completeness"
-    | "focus_crop_status";
+    | "focus_crop_status"
+    | "focus_crop_matches"
+    | "crop_category"
+    | "youth_status";
   dependsOn?: string[];
   recallPeriod?: string;
   treatmentControlApplicability?: "both" | "treatment" | "control";

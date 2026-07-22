@@ -83,6 +83,7 @@ const householdSections: SurveySectionDefinition[] = [
         fields: [
           q("1A.1", "Member name", "text", undefined, { required: true }),
           q("1A.2", "Age", "number", undefined, { required: true, unit: "years", validation: { min: 0, max: 120 } }),
+          q("1A.2a", "Youth classification", "automatic", undefined, { calculation: "youth_status", dependsOn: ["1A.2"], helpText: "Calculated only from the project-approved youth age range." }),
           q("1A.3", "Gender", "radio", ["Male", "Female", "Other", "Prefer Not to Answer"], { required: true }),
           q("1A.4", "Relationship to household head", "select", ["Head", "Spouse", "Son", "Daughter", "Parent", "Sibling", "Son-in-Law", "Daughter-in-Law", "Grandchild", "Other"], { required: true }),
           q("1A.5", "Education", "select", ["Below School Age", "No Formal Schooling", "Primary", "Middle", "Secondary", "Higher Secondary", "Diploma-ITI", "Graduate", "Postgraduate+"]),
@@ -406,6 +407,44 @@ const householdSections: SurveySectionDefinition[] = [
   ),
 ];
 
+const revisedCropProductionSection = section(
+  "crop-production",
+  3,
+  "Crop Production Practices - Focus Crops",
+  "Crop production",
+  "Short all-crop roster followed by FPO-matched annual crop-cycle or perennial orchard modules.",
+  [
+    q("3A.1", "Which crops did your household cultivate during the last 12 months?", "repeat_group", undefined, {
+      required: true,
+      repeatLabel: "crop",
+      minRepeats: 1,
+      recallPeriod: "Last 12 months",
+      helpText: "Keep this roster short. Detailed questions open only for crops matching the selected FPO focus-crop mapping.",
+      fields: [
+        q("3A.2", "Crop name", "search_select", ["Other - Specify"], { required: true }),
+        q("3A.2a", "Please specify the crop name", "text", undefined, { showWhen: { questionId: "3A.2", value: "Other - Specify" }, required: true }),
+        q("3A.3", "Crop category", "automatic", undefined, { calculation: "crop_category", helpText: "Auto-populated from the Admin Crop Master where available." }),
+      ],
+    }),
+    q("3B.1", "FPO focus-crop identification", "automatic", undefined, {
+      calculation: "focus_crop_matches",
+      dependsOn: ["3A.1", "1.7"],
+      helpText: "The system compares crops actually reported in 3A with the focus crop mapping for the selected FPO.",
+    }),
+    q("3B.2", "Detailed focus-crop production module", "focus_crop_modules", undefined, {
+      helpText: "One linked module is generated for every matching focus crop. Non-focus crops do not receive the detailed module.",
+    }),
+    q("3J.1", "Previously cultivated the target focus crop", "radio", YES_NO, { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+    q("3J.2", "Willingness to adopt the focus crop", "radio", ["Definitely Yes", "Probably Yes", "Unsure", "Probably No", "Definitely No"], { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+    q("3J.3", "Suitable land available", "radio", YES_NO_DK, { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+    q("3J.4", "Irrigation available", "radio", YES_NO, { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+    q("3J.5", "Knowledge of focus-crop production", "radio", ["High", "Moderate", "Low", "None"], { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+    q("3J.6", "Access to planting material", "radio", ["Easy", "Moderate", "Difficult", "No Access"], { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+    q("3J.7", "Expected market opportunity", "radio", ["Very Good", "Good", "Moderate", "Poor", "Don't Know"], { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+    q("3J.8", "Main barriers to adopting the focus crop", "multiselect", ["Land", "Water", "Planting Material", "Knowledge", "Labour", "Finance", "Climate Risk", "Market Risk", "Other"], { showWhen: { questionId: "3B.1", value: "No matching focus crop cultivated" } }),
+  ],
+);
+
 const institutionalSections: SurveySectionDefinition[] = [
   section(
     "fpo-institutional",
@@ -433,9 +472,9 @@ const institutionalSections: SurveySectionDefinition[] = [
 export const householdQuestionnaire: QuestionnaireDefinition = {
   id: "ukihdp-household-baseline",
   title: "UKIHDP Household Baseline Survey",
-  version: "1.0-draft",
+  version: "1.1-draft",
   status: "draft",
-  sections: householdSections,
+  sections: householdSections.map((item) => item.id === "crop-production" ? revisedCropProductionSection : item),
 };
 
 export const institutionalQuestionnaire: QuestionnaireDefinition = {
