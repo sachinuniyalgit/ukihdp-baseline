@@ -1,36 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { baselineQuestionnaire } from "@/config/questionnaire-outline";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const navigation = ["Overview", "New survey", "My drafts", "Review queue", "Field progress", "GIS monitoring", "Results", "Reports", "Master data"];
 const districts = ["Pithoragarh", "Nainital", "Uttarkashi", "Tehri Garhwal"];
 
+function subscribeToConnectivity(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
 export default function Home() {
   const router = useRouter();
+  const auth = useAuth();
   const [active, setActive] = useState("Overview");
-  const [online, setOnline] = useState(true);
+  const online = useSyncExternalStore(subscribeToConnectivity, () => navigator.onLine, () => true);
   const showOutline = active === "New survey";
 
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span>U</span><div><b>UKIHDP</b><small>Baseline assessment</small></div></div>
-      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => item === "New survey" ? router.push("/survey/new") : item === "Master data" ? router.push("/admin/master-data") : setActive(item)}>{item}</button>)}</nav>
-      <div className="sidebar-foot"><i /> Foundation workspace<br/><small>Questionnaire questions intentionally pending</small></div>
+      <nav>{navigation.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => item === "New survey" ? router.push("/survey/new") : item === "My drafts" ? router.push("/drafts") : item === "Review queue" ? router.push("/review") : item === "Master data" ? router.push("/admin/master-data") : setActive(item)}>{item}</button>)}</nav>
+      <div className="sidebar-foot"><i /> Field workspace ready<br/><small>{auth.demoMode ? "Local preview mode" : "Secure central database"}</small></div>
     </aside>
 
     <section className="content">
       <header className="topbar">
         <div><p>UKIHDP / {active}</p><h1>Baseline Assessment Platform</h1></div>
         <div className="top-actions">
-          <button className={online ? "connection online" : "connection offline"} onClick={() => setOnline(!online)}><i />{online ? "Online" : "Offline demo"}</button>
-          <button className="profile" aria-label="Admin researcher profile">AR</button>
+          <button className={online ? "connection online" : "connection offline"} aria-label="Current internet connection status"><i />{online ? "Online" : "Offline"}</button>
+          <button className="profile" aria-label="Open secure login or profile" onClick={() => auth.user ? auth.signOut() : router.push("/login")}>{auth.profile ? auth.profile.displayName.slice(0, 2).toUpperCase() : auth.demoMode ? "LP" : "IN"}</button>
         </div>
       </header>
 
       <section className="intro-card">
-        <div><p className="green-label">Foundation ready</p><h2>A reliable field-to-evidence workflow</h2><p>Mobile data collection, secure roles, offline drafts, and a configurable survey engine are ready for the finalized questionnaire.</p></div>
+        <div><p className="green-label">{auth.demoMode ? "Local preview ready" : "Secure database connected"}</p><h2>A reliable field-to-evidence workflow</h2><p>Mobile data collection, role-based access, offline drafts, secure synchronization, review decisions, and configurable survey instruments work as one connected flow.</p></div>
         <button className="primary" onClick={() => router.push("/survey/new")}>Start questionnaire <span aria-hidden>&rarr;</span></button>
       </section>
 
@@ -45,9 +56,9 @@ export default function Home() {
 
       <section className="metrics">
         <article><em className="navy">01</em><div><small>Sample target</small><strong>960</strong><p>640 treatment / 320 control</p></div></article>
-        <article><em className="teal">DB</em><div><small>Survey status</small><strong>Not started</strong><p>Awaiting question configuration</p></div></article>
+        <article><em className="teal">DB</em><div><small>Survey status</small><strong>Pilot ready</strong><p>Household + FPO instruments</p></div></article>
         <article><em className="forest">GPS</em><div><small>Project coverage</small><strong>4 districts</strong><p>16 FPO analytical clusters</p></div></article>
-        <article><em className="amber">PWA</em><div><small>Offline capability</small><strong>Foundation ready</strong><p>PWA shell + local draft store</p></div></article>
+        <article><em className="amber">PWA</em><div><small>Offline capability</small><strong>Sync ready</strong><p>Local drafts + reconnect queue</p></div></article>
       </section>
 
       <section className="grid">

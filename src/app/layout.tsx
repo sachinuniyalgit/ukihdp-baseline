@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { PwaRegister } from "@/components/pwa-register";
+import { AuthProvider } from "@/components/auth/auth-provider";
+import { SyncOnReconnect } from "@/components/sync-on-reconnect";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><PwaRegister />{children}</body></html>;
+  return <html lang="en"><body><AuthProvider><PwaRegister /><SyncOnReconnect />{children}</AuthProvider></body></html>;
 }

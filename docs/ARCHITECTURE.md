@@ -14,14 +14,20 @@ This repository contains the implemented household and FPO questionnaire foundat
 - **Controlled master data:** configurable youth definition, Nali conversion, crops, varieties, FPO mappings, and audit history.
 - **Database migrations:** Supabase/PostgreSQL-ready roles, questionnaire, submission, response, sync, crop-master, crop-cycle, and linked-response tables.
 
+## Implemented operational foundation
+
+1. Supabase email/password authentication with Admin, Reviewer, and Enumerator access gates.
+2. Local draft recovery, queued submission, automatic reconnect sync, and central status refresh.
+3. Conflict-safe synchronization using client IDs and server revisions.
+4. Reviewer transitions for submitted, under-review, returned, and approved records, with review-event history.
+5. Database policies that isolate enumerator records and reserve management actions for Reviewer/Admin roles.
+
 ## Planned modules
 
-1. Connect Supabase authentication and assignment rules for Admin, Reviewer, and Enumerator.
-2. Connect the current draft/queue UI to server-side submit, review, return, correct, and approve operations.
-3. Implement conflict-safe synchronization against server revisions.
-4. Build privacy-protected GIS and GPS survey monitoring.
-5. Build verified-data dashboards and treatment/control analysis.
-6. Add export and automated standard reports.
+1. Build privacy-protected GIS and GPS survey monitoring.
+2. Build verified-data dashboards and treatment/control analysis.
+3. Add export and automatic standard reports.
+4. Add server-managed master-data editing and user-role administration screens.
 
 ## Data rule
 

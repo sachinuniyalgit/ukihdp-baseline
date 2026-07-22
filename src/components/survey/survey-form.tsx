@@ -6,7 +6,8 @@ import { householdQuestionnaire, institutionalQuestionnaire } from "@/config/que
 import { blocksForDistrict, findFpo, fposForLocation, projectFpos, projectMaster } from "@/config/project-master";
 import type { AdminMasterData } from "@/lib/admin-master-data";
 import { useAdminMasterData } from "@/hooks/use-admin-master-data";
-import { queueSurveyForSync, saveSurveyDraft } from "@/lib/offline-drafts";
+import { getSurveyDraft, queueSurveyForSync, saveSurveyDraft } from "@/lib/offline-drafts";
+import { syncSurveyDraftById } from "@/lib/survey-sync";
 import type { AnswerValue, QuestionnaireDefinition, QuestionDefinition, VisibilityRule } from "@/lib/survey/types";
 import { FocusCropModules } from "@/components/survey/focus-crop-modules";
 
@@ -85,6 +86,24 @@ export function SurveyForm() {
   const configuredFocusCrops = configuredMapping ? configuredMapping.status === "Confirmed" ? configuredMapping.cropNames : [] : selectedFpo?.focusCrops ?? [];
   const allCropRoster = (responses["3A.1"] as AnswerMap[] | undefined) ?? [];
   const matchedFocusCropNames = [...new Set(allCropRoster.map((item) => String(item["3A.2"] === "Other - Specify" ? item["3A.2a"] : item["3A.2"] ?? "")).filter((cropName) => configuredFocusCrops.some((focusCrop) => focusCrop.toLowerCase() === cropName.toLowerCase())))];
+
+  useEffect(() => {
+    const requestedId = new URLSearchParams(window.location.search).get("draft");
+    if (!requestedId) return;
+    void getSurveyDraft(requestedId).then((draft) => {
+      if (!draft) {
+        setNotice("That local survey draft could not be found on this device.");
+        return;
+      }
+      const nextInstrument: Instrument = draft.questionnaireId === institutionalQuestionnaire.id ? "institutional" : "household";
+      setInstrument(nextInstrument);
+      setDraftId(draft.id);
+      setResponses((draft.sectionData.answers ?? {}) as AnswerMap);
+      setStartedAt(draft.updatedAt);
+      setActiveSection(0);
+      setNotice(draft.status === "returned" ? `Returned for correction${draft.reviewNote ? `: ${draft.reviewNote}` : ". Update it and submit it again."}` : "Local draft restored from this device.");
+    });
+  }, []);
 
   const optionsForQuestion = (question: QuestionDefinition) => {
     if (question.id === "1.5") return projectMaster.districts;
@@ -257,7 +276,12 @@ export function SurveyForm() {
     await saveNow();
     try {
       await queueSurveyForSync(draftId);
-      setNotice(online ? "Survey queued for secure server synchronization and reviewer submission." : "Survey queued. It will synchronize when connectivity returns.");
+      if (online) {
+        const result = await syncSurveyDraftById(draftId);
+        setNotice(result.message);
+      } else {
+        setNotice("Survey queued. It will synchronize when connectivity returns.");
+      }
     } catch {
       setNotice("The survey is saved, but it could not be placed in the synchronization queue.");
     }

@@ -8,10 +8,11 @@ export interface OfflineSurveyDraft {
   id: string;
   questionnaireId: string;
   questionnaireVersion: string;
-  status: Extract<SurveyStatus, "draft" | "queued" | "returned">;
+  status: SurveyStatus;
   updatedAt: string;
   sectionData: Record<string, Record<string, unknown>>;
   serverRevision?: number;
+  reviewNote?: string;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -70,4 +71,21 @@ export async function queueSurveyForSync(id: string): Promise<void> {
   const draft = await getSurveyDraft(id);
   if (!draft) throw new Error("Survey draft was not found.");
   await saveSurveyDraft({ ...draft, status: "queued", updatedAt: new Date().toISOString() });
+}
+
+export async function updateSurveyDraftStatus(id: string, status: SurveyStatus, serverRevision?: number, reviewNote?: string): Promise<void> {
+  const draft = await getSurveyDraft(id);
+  if (!draft) throw new Error("Survey draft was not found.");
+  await saveSurveyDraft({ ...draft, status, serverRevision: serverRevision ?? draft.serverRevision, reviewNote: reviewNote ?? draft.reviewNote, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteSurveyDraft(id: string): Promise<void> {
+  const database = await openDatabase();
+  const transaction = database.transaction(DRAFT_STORE, "readwrite");
+  transaction.objectStore(DRAFT_STORE).delete(id);
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Could not delete the survey draft."));
+  });
+  database.close();
 }
