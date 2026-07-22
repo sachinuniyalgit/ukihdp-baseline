@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
-import { householdQuestionnaire, institutionalQuestionnaire, projectMaster } from "@/config/questionnaires";
+import { householdQuestionnaire, institutionalQuestionnaire } from "@/config/questionnaires";
+import { blocksForDistrict, findFpo, fposForLocation, projectFpos, projectMaster } from "@/config/project-master";
 import { queueSurveyForSync, saveSurveyDraft } from "@/lib/offline-drafts";
 import type { AnswerValue, QuestionnaireDefinition, QuestionDefinition, VisibilityRule } from "@/lib/survey/types";
 
@@ -74,6 +75,17 @@ export function SurveyForm() {
   const online = useSyncExternalStore(subscribeToConnectivity, () => navigator.onLine, () => true);
 
   const configuredFields = useMemo(() => countConfiguredFields(questionnaire), [questionnaire]);
+  const selectedFpo = findFpo(String(responses[instrument === "household" ? "1.7" : "11.1"] ?? ""));
+
+  const optionsForQuestion = (question: QuestionDefinition) => {
+    if (question.id === "1.5") return projectMaster.districts;
+    if (question.id === "1.6") return blocksForDistrict(String(responses["1.5"] ?? ""));
+    if (question.id === "1.7") return fposForLocation(String(responses["1.5"] ?? ""), String(responses["1.6"] ?? "")).map((item) => item.name);
+    if (question.id === "1.8") return selectedFpo ? [...selectedFpo.villages, "Other - Specify"] : [];
+    if (question.id === "11.1") return projectFpos.map((item) => item.name);
+    if (question.id === "3.1a") return selectedFpo ? [...selectedFpo.focusCrops, "Other"] : ["Other"];
+    return question.options;
+  };
 
   useEffect(() => {
     if (Object.keys(responses).length === 0) return;
@@ -117,14 +129,14 @@ export function SurveyForm() {
       return `${perAcre.toFixed(1)} kg/acre | ${(perAcre * 2.47105).toFixed(1)} kg/ha`;
     }
     if (question.calculation === "focus_crop_status") {
-      if (projectMaster.focusCrops.length === 0) return "Pending master data";
+      if (!selectedFpo) return "Select FPO first";
       if (question.id === "3.11") {
         const crop = String(context["3.1a"] ?? "").toLowerCase();
-        return projectMaster.focusCrops.some((item) => item.toLowerCase() === crop) ? "Focus crop" : "Other crop";
+        return selectedFpo.focusCrops.some((item) => item.toLowerCase() === crop) ? "Focus crop" : "Other crop";
       }
       const crops = responses["3.1"] as AnswerMap[] | undefined;
       if (!crops?.length) return "Pending crop roster";
-      return crops.some((crop) => projectMaster.focusCrops.some((item) => item.toLowerCase() === String(crop["3.1a"] ?? "").toLowerCase())) ? "Grower" : "Non-grower";
+      return crops.some((crop) => selectedFpo.focusCrops.some((item) => item.toLowerCase() === String(crop["3.1a"] ?? "").toLowerCase())) ? "Grower" : "Non-grower";
     }
     if (question.calculation === "interview_duration") {
       return "Calculated automatically when submitted";
@@ -170,7 +182,20 @@ export function SurveyForm() {
 
   const updateResponse = (id: string, value: AnswerValue) => {
     setSaveState("saving");
-    setResponses((current) => ({ ...current, [id]: value }));
+    setResponses((current) => {
+      const next = { ...current, [id]: value };
+      if (id === "1.5") {
+        delete next["1.6"];
+        delete next["1.7"];
+        delete next["1.8"];
+      }
+      if (id === "1.6") {
+        delete next["1.7"];
+        delete next["1.8"];
+      }
+      if (id === "1.7") delete next["1.8"];
+      return next;
+    });
     setNotice("");
   };
 
@@ -238,8 +263,10 @@ export function SurveyForm() {
       <section className="form-card">
         <header><div><p>Section {current.order} of {questionnaire.sections.length}</p><h2>{current.title}</h2><span>{current.description}</span></div><b>{questionnaire.version}</b></header>
 
+        {selectedFpo && <div className="fpo-context"><div><span>Selected FPO</span><strong>{selectedFpo.name}</strong></div><div><span>Block / District</span><strong>{selectedFpo.block} / {selectedFpo.district}</strong></div><div><span>CBBO</span><strong>{selectedFpo.cbbo}</strong></div><div><span>Focus crop(s)</span><strong>{selectedFpo.cropNote ?? selectedFpo.focusCrops.join(", ")}</strong></div><div><span>Configured villages</span><strong>{selectedFpo.villages.length}</strong></div></div>}
+
         {consentDeclined ? <div className="consent-stop"><strong>Interview ended</strong><p>The respondent did not provide consent. Do not collect any additional information. Save this record only as a consent refusal if required by the approved protocol.</p><button onClick={saveNow}>Save consent outcome</button></div> : <div className="question-list">
-          {current.questions.map((question) => isVisible(question, responses) ? <QuestionField key={question.id} question={question} value={question.inputType === "automatic" ? automaticValue(question, responses) : responses[question.id]} update={(value) => updateResponse(question.id, value)} isVisible={isVisible} automaticValue={automaticValue} /> : null)}
+          {current.questions.map((question) => isVisible(question, responses) ? <QuestionField key={question.id} question={question} resolvedOptions={optionsForQuestion(question)} value={question.inputType === "automatic" ? automaticValue(question, responses) : responses[question.id]} update={(value) => updateResponse(question.id, value)} isVisible={isVisible} automaticValue={automaticValue} optionsForQuestion={optionsForQuestion} /> : null)}
         </div>}
 
         {notice && <div className="form-notice" role="status">{notice}</div>}
@@ -255,15 +282,17 @@ export function SurveyForm() {
 
 interface QuestionFieldProps {
   question: QuestionDefinition;
+  resolvedOptions?: string[];
   value: AnswerValue | string | undefined;
   update: (value: AnswerValue) => void;
   isVisible: (question: QuestionDefinition, context: AnswerMap) => boolean;
   automaticValue: (question: QuestionDefinition, context: AnswerMap) => string;
+  optionsForQuestion: (question: QuestionDefinition) => string[] | undefined;
 }
 
-function QuestionField({ question, value, update, isVisible, automaticValue }: QuestionFieldProps) {
+function QuestionField({ question, resolvedOptions, value, update, isVisible, automaticValue, optionsForQuestion }: QuestionFieldProps) {
   const fieldId = `field-${question.id.replaceAll(".", "-")}`;
-  const options = question.options ?? [];
+  const options = resolvedOptions ?? question.options ?? [];
   const wrapper = (content: React.ReactNode) => <article className={`question ${question.inputType === "repeat_group" ? "repeat-question" : ""}`}>
     <div className="question-label"><span>{question.id}</span><div><label htmlFor={fieldId}>{question.label}{question.required && <b> *</b>}</label>{question.recallPeriod && <small>Recall: {question.recallPeriod}</small>}{question.helpText && <p>{question.helpText}</p>}</div></div>
     <div className="question-input">{content}</div>
@@ -305,7 +334,7 @@ function QuestionField({ question, value, update, isVisible, automaticValue }: Q
   }
   if (question.inputType === "repeat_group") {
     const entries = Array.isArray(value) ? value as AnswerMap[] : [];
-    return wrapper(<div className="repeat-list">{entries.map((entry, index) => <section className="repeat-card" key={`${question.id}-${index}`}><header><strong>{question.repeatLabel ?? "record"} {index + 1}</strong><button type="button" onClick={() => update(entries.filter((_, entryIndex) => entryIndex !== index))}>Remove</button></header>{question.fields?.map((field) => isVisible(field, entry) ? <QuestionField key={field.id} question={field} value={field.inputType === "automatic" ? automaticValue(field, entry) : entry[field.id]} update={(fieldValue) => update(entries.map((item, entryIndex) => entryIndex === index ? { ...item, [field.id]: fieldValue } : item))} isVisible={isVisible} automaticValue={automaticValue} /> : null)}</section>)}<button type="button" className="add-repeat" onClick={() => update([...entries, {}])}>+ Add {question.repeatLabel ?? "record"}</button></div>);
+    return wrapper(<div className="repeat-list">{entries.map((entry, index) => <section className="repeat-card" key={`${question.id}-${index}`}><header><strong>{question.repeatLabel ?? "record"} {index + 1}</strong><button type="button" onClick={() => update(entries.filter((_, entryIndex) => entryIndex !== index))}>Remove</button></header>{question.fields?.map((field) => isVisible(field, entry) ? <QuestionField key={field.id} question={field} resolvedOptions={optionsForQuestion(field)} value={field.inputType === "automatic" ? automaticValue(field, entry) : entry[field.id]} update={(fieldValue) => update(entries.map((item, entryIndex) => entryIndex === index ? { ...item, [field.id]: fieldValue } : item))} isVisible={isVisible} automaticValue={automaticValue} optionsForQuestion={optionsForQuestion} /> : null)}</section>)}<button type="button" className="add-repeat" onClick={() => update([...entries, {}])}>+ Add {question.repeatLabel ?? "record"}</button></div>);
   }
   return wrapper(<div className="automatic-value">Input type pending</div>);
 }

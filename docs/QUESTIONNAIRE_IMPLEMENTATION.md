@@ -25,16 +25,16 @@ The current configuration contains 251 fields when repeat-group child fields and
 - Automatic survey identifier, totals, yield, production-cost total, GPS accuracy, and completeness status.
 - Automatic browser draft saving and offline synchronization queue.
 - Separate Household and FPO instrument switch.
+- Dependent District to Block to FPO to Village selection for all 16 supplied FPO clusters.
+- FPO-specific CBBO, focus-crop, and village context display.
+- Focus-crop grower/non-grower calculation based on the selected FPO.
 
 ## Project master data still required
 
-The supplied questionnaire did not contain the following exact master values. They are intentionally not invented:
+The following values remain pending because they were not supplied. They are intentionally not invented:
 
-- District to Block mapping.
-- The 16 FPO names and Block/FPO relationships.
-- Village lists and Village/FPO relationships.
-- Project focus-crop list.
-- Crop and variety masters.
+- Full all-crop master beyond the supplied focus crops.
+- Crop variety masters.
 - Approved Nali-to-acre conversion factor.
 - Approved youth age range.
 - Final dietary-diversity protocol confirmation.

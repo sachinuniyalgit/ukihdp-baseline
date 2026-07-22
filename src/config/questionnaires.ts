@@ -430,11 +430,6 @@ const institutionalSections: SurveySectionDefinition[] = [
   ),
 ];
 
-export const projectMaster = {
-  focusCrops: [] as string[],
-  youthAgeRange: null as null | { min: number; max: number },
-};
-
 export const householdQuestionnaire: QuestionnaireDefinition = {
   id: "ukihdp-household-baseline",
   title: "UKIHDP Household Baseline Survey",

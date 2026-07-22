@@ -36,9 +36,10 @@ pnpm build
 
 - Supabase project and real credentials.
 - GitHub remote repository.
-- Approved District-Block-FPO-Village master data.
-- Approved focus-crop and crop-variety masters.
+- Full non-focus crop and crop-variety masters.
 - Approved youth age range, Nali conversion factor, and final indicator traceability matrix.
 - GIS results, reviewer screens, analytical dashboards, and automatic reports.
 
 No real respondent or household data is included.
+
+The configured geographic master includes 4 districts, 16 FPOs, CBBOs, block aliases, focus crops, and the supplied village lists.
