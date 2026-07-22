@@ -140,5 +140,4 @@ create policy "admins create audit log" on public.master_data_audit_log for inse
 create index survey_payload_updated_idx on public.survey_submission_payloads(updated_at);
 create index review_events_submission_idx on public.review_events(submission_id, created_at);
 
--- After the first Auth user is created, promote the authorized project owner once:
--- update public.profiles set role = 'admin' where id = '<approved-user-uuid>';
+-- The one-time, race-safe initial Administrator claim is installed by migration 0004.
