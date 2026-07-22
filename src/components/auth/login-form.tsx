@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { AppRole } from "@/lib/survey/types";
+import { testAccounts, type TestAccount } from "@/lib/test-accounts";
 
 type AccessMode = "sign-in" | "sign-up";
 
@@ -35,8 +36,10 @@ export function LoginForm() {
     void client.rpc("needs_initial_admin").then(({ data, error }) => {
       if (!error && data === true) {
         setNeedsAdmin(true);
-        setRequestedRole("admin");
-        setMode("sign-up");
+        if (!testAccounts.length) {
+          setRequestedRole("admin");
+          setMode("sign-up");
+        }
       }
       setCheckingSetup(false);
     });
@@ -55,10 +58,23 @@ export function LoginForm() {
 
   const authenticate = async (event: React.FormEvent) => {
     event.preventDefault();
-    const client = getSupabaseBrowserClient();
-    if (!client) return setMessage("Supabase is not configured. Add the project URL and publishable key first.");
     setSubmitting(true);
     resetMessage();
+
+    if (mode === "sign-in") {
+      const testAccount = auth.signInForTesting(email, password);
+      if (testAccount) {
+        setSubmitting(false);
+        router.replace("/");
+        return;
+      }
+    }
+
+    const client = getSupabaseBrowserClient();
+    if (!client) {
+      setSubmitting(false);
+      return setMessage("Supabase is not configured. Use a local test account or add the project URL and publishable key.");
+    }
 
     if (mode === "sign-up") {
       const role = needsAdmin ? "admin" : requestedRole;
@@ -123,6 +139,14 @@ export function LoginForm() {
   const isRegistration = mode === "sign-up";
   const heading = needsAdmin && isRegistration ? "Set up Administrator" : isRegistration ? "Request project access" : "Welcome back";
 
+  const loginAsTestAccount = (account: TestAccount) => {
+    resetMessage();
+    setEmail(account.email);
+    setPassword(account.password);
+    const signedIn = auth.signInForTesting(account.email, account.password);
+    if (signedIn) router.replace("/");
+  };
+
   return <section className="login-card" aria-busy={submitting || checkingSetup}>
     <div className="login-mode-tabs" aria-label="Account access options">
       <button type="button" className={mode === "sign-in" ? "active" : ""} onClick={() => selectMode("sign-in")}>Sign in</button>
@@ -140,6 +164,18 @@ export function LoginForm() {
     </div>
 
     {auth.demoMode && <div className="login-warning"><strong>Local preview mode</strong><span>Authentication will activate after Supabase credentials are added.</span></div>}
+
+    {!isRegistration && testAccounts.length > 0 && <div className="test-account-panel">
+      <div className="test-account-heading"><div><strong>Quick test accounts</strong><span>Choose a role to open its local dashboard.</span></div><b>LOCAL ONLY</b></div>
+      <div className="test-account-list">
+        {testAccounts.map((account) => <button type="button" key={account.role} onClick={() => loginAsTestAccount(account)}>
+          <span className={`test-role ${account.role}`}>{account.role === "admin" ? "A" : account.role === "reviewer" ? "R" : "E"}</span>
+          <div><strong>{account.displayName}</strong><small>{account.email}</small><code>{account.password}</code></div>
+          <i>Open</i>
+        </button>)}
+      </div>
+      <p>These accounts are for visual testing only. They cannot read or change production survey data.</p>
+    </div>}
 
     {isRegistration && <div className="role-picker" aria-label="Requested account role">
       {roleChoices.map((choice) => {

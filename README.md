@@ -22,6 +22,12 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Without Supabase credentials the application intentionally uses local preview mode. Questionnaire drafts and the PWA work on the device; central login, synchronization, and review activate after the setup below.
 
+### Local role testing
+
+The login page can display one-click Administrator, Reviewer, and Enumerator test accounts when `NEXT_PUBLIC_ENABLE_TEST_LOGIN=true` is set in an ignored `.env.development.local` file. This feature is additionally restricted to the Next.js development environment, so a production build cannot activate it.
+
+These test identities are for visual role and navigation testing only. They use local browser storage and cannot read, synchronize, approve, or change production Supabase data. Keep all test passwords out of committed files and use real Supabase accounts for database workflow testing.
+
 ## Supabase setup
 
 1. Create a Supabase project.

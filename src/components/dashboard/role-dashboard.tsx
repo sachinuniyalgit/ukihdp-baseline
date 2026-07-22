@@ -125,7 +125,7 @@ export function RoleDashboard({ previewRole }: { previewRole?: AppRole } = {}) {
         const client = getSupabaseBrowserClient();
         try {
           const drafts = await listSurveyDrafts().catch(() => [] as OfflineSurveyDraft[]);
-          if (!client || !auth.user) {
+          if (auth.testMode || !client || !auth.user) {
             if (!cancelled) setState({ submissions: [], payloads: [], profiles: [], drafts, loading: false, error: "" });
             return;
           }
@@ -150,7 +150,7 @@ export function RoleDashboard({ previewRole }: { previewRole?: AppRole } = {}) {
       })();
     }, 0);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [auth.user]);
+  }, [auth.user, auth.testMode]);
 
   const metrics = useMemo(() => summarize(state), [state]);
   const navigation = navigationByRole[role];
@@ -172,7 +172,7 @@ export function RoleDashboard({ previewRole }: { previewRole?: AppRole } = {}) {
     <section className="dashboard-content">
       <header className="dashboard-topbar">
         <div><h1>{title}</h1><p>{subtitle}</p></div>
-        <div className="dashboard-actions"><div className="sync-label"><b>{state.error ? "Data connection warning" : state.loading ? "Refreshing dashboard" : "All changes synchronized"}</b><small>{state.error || `Last checked ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}</small></div><span className={`online-pill ${online ? "" : "offline"}`}><i />{online ? "Online" : "Offline"}</span>{role === "enumerator" || role === "admin" ? <button className="new-survey" onClick={() => router.push("/survey/new")}>＋ New Survey</button> : <button className="new-survey" onClick={() => router.push("/review")}>Open Review Queue</button>}</div>
+        <div className="dashboard-actions"><div className="sync-label"><b>{auth.testMode ? "Local test dashboard" : state.error ? "Data connection warning" : state.loading ? "Refreshing dashboard" : "All changes synchronized"}</b><small>{auth.testMode ? "No production data is connected" : state.error || `Last checked ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}</small></div><span className={`online-pill ${online ? "" : "offline"}`}><i />{auth.testMode ? "Test mode" : online ? "Online" : "Offline"}</span>{role === "enumerator" || role === "admin" ? <button className="new-survey" onClick={() => router.push("/survey/new")}>＋ New Survey</button> : <button className="new-survey" onClick={() => router.push("/review")}>Open Review Queue</button>}</div>
       </header>
 
       {notice && <div className="dashboard-notice"><span>{notice}</span><button onClick={() => setNotice("")}>×</button></div>}
