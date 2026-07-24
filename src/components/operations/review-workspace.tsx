@@ -21,7 +21,7 @@ interface ReviewSubmission {
 }
 
 export function ReviewWorkspace() {
-  return <AccessGate roles={["reviewer", "admin"]}><ReviewContent /></AccessGate>;
+  return <AccessGate roles={["supervisor", "reviewer", "researcher", "admin"]}><ReviewContent /></AccessGate>;
 }
 
 function ReviewContent() {

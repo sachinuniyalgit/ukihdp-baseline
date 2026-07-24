@@ -3,12 +3,19 @@ import type { SurveyStatus } from "@/lib/survey/types";
 const DATABASE_NAME = "ukihdp-field-data";
 const DATABASE_VERSION = 1;
 const DRAFT_STORE = "survey-drafts";
+export const DRAFTS_UPDATED_EVENT = "fieldflow-drafts-updated";
+export type LocalSyncState = "saved_locally" | "pending_sync" | "syncing" | "synced" | "sync_failed";
 
 export interface OfflineSurveyDraft {
   id: string;
   questionnaireId: string;
   questionnaireVersion: string;
+  studyId?: string;
+  studyCode?: string;
+  studyName?: string;
   status: SurveyStatus;
+  syncState?: LocalSyncState;
+  syncMessage?: string;
   updatedAt: string;
   sectionData: Record<string, Record<string, unknown>>;
   serverRevision?: number;
@@ -51,6 +58,7 @@ export async function saveSurveyDraft(draft: OfflineSurveyDraft): Promise<void> 
     transaction.onerror = () => reject(transaction.error ?? new Error("Could not save the survey draft."));
   });
   database.close();
+  window.dispatchEvent(new CustomEvent(DRAFTS_UPDATED_EVENT));
 }
 
 export async function getSurveyDraft(id: string): Promise<OfflineSurveyDraft | undefined> {
@@ -70,13 +78,13 @@ export async function listSurveyDrafts(): Promise<OfflineSurveyDraft[]> {
 export async function queueSurveyForSync(id: string): Promise<void> {
   const draft = await getSurveyDraft(id);
   if (!draft) throw new Error("Survey draft was not found.");
-  await saveSurveyDraft({ ...draft, status: "queued", updatedAt: new Date().toISOString() });
+  await saveSurveyDraft({ ...draft, status: "queued", syncState: "pending_sync", syncMessage: undefined, updatedAt: new Date().toISOString() });
 }
 
-export async function updateSurveyDraftStatus(id: string, status: SurveyStatus, serverRevision?: number, reviewNote?: string): Promise<void> {
+export async function updateSurveyDraftStatus(id: string, status: SurveyStatus, serverRevision?: number, reviewNote?: string, syncState?: LocalSyncState, syncMessage?: string): Promise<void> {
   const draft = await getSurveyDraft(id);
   if (!draft) throw new Error("Survey draft was not found.");
-  await saveSurveyDraft({ ...draft, status, serverRevision: serverRevision ?? draft.serverRevision, reviewNote: reviewNote ?? draft.reviewNote, updatedAt: new Date().toISOString() });
+  await saveSurveyDraft({ ...draft, status, serverRevision: serverRevision ?? draft.serverRevision, reviewNote: reviewNote ?? draft.reviewNote, syncState: syncState ?? draft.syncState, syncMessage: syncMessage ?? draft.syncMessage, updatedAt: new Date().toISOString() });
 }
 
 export async function deleteSurveyDraft(id: string): Promise<void> {
@@ -88,4 +96,5 @@ export async function deleteSurveyDraft(id: string): Promise<void> {
     transaction.onerror = () => reject(transaction.error ?? new Error("Could not delete the survey draft."));
   });
   database.close();
+  window.dispatchEvent(new CustomEvent(DRAFTS_UPDATED_EVENT));
 }

@@ -54,7 +54,7 @@ export function MasterDataPanel() {
   const updateMapping = (fpoName: string, patch: Partial<FpoFocusMapping>) => setDraft((current) => ({ ...current, fpoFocusMappings: current.fpoFocusMappings.map((mapping) => mapping.fpoName === fpoName ? { ...mapping, ...patch } : mapping) }));
 
   return <main className="admin-page">
-    <header className="admin-topbar"><div><Link href="/">&larr; Dashboard</Link><span>UKIHDP Administration</span></div><b>Admin configuration preview</b></header>
+    <header className="admin-topbar"><div><Link href="/">&larr; Dashboard</Link><span>FieldFlow study master data</span></div><b>Baseline study configuration</b></header>
     <section className="admin-heading"><div><p>Controlled study configuration</p><h1>Master data</h1><span>Manage the definitions that drive field forms, calculations and FPO-specific crop routing.</span></div><div className="admin-security"><strong>Production security note</strong><span>This screen must be protected by Supabase Admin authorization before live deployment. Local changes currently stay in this browser.</span></div></section>
     <nav className="admin-tabs">{([['settings','Definitions'],['crops','Crop master'],['varieties','Varieties'],['fpo','FPO mappings'],['audit','Audit history']] as [MasterArea,string][]).map(([id,label]) => <button className={active === id ? "active" : ""} key={id} onClick={() => { setActive(id); setNotice(""); }}>{label}</button>)}</nav>
     {notice && <div className="admin-notice">{notice}</div>}

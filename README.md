@@ -1,8 +1,21 @@
-# UKIHDP Baseline Assessment Platform
+# FieldFlow Survey Management Platform
 
-Mobile-first household and FPO baseline data-collection application. It includes the finalized questionnaire structure, offline drafts, installable PWA support, secure role foundations, conflict-aware synchronization, and a reviewer approval workflow.
+FieldFlow is a mobile-first, multi-study research data-management application. The built-in study is the detailed UKIHDP household and FPO baseline assessment; its finalized questionnaire is preserved while the surrounding platform supports reusable studies, user assignments, offline fieldwork, quality review, GIS, analytics, and automatic reports.
 
-No real respondent or household data is included.
+No real respondent or household data is included in this repository.
+
+## Implemented workspaces
+
+- Role-specific dashboards for Administrator, Researcher/Study Manager, Supervisor, Reviewer, and Enumerator.
+- Protected UKIHDP household/FPO questionnaire with 222 configured fields plus repeating household and crop groups.
+- District → Block → FPO → Village project master data for 4 districts and 16 FPOs.
+- Multi-study catalogue, study command centre, XLSX/CSV questionnaire import, validation, publication, and version replacement.
+- Offline IndexedDB drafts, pending-sync states, conflict-aware upload, reconnect synchronization, and production PWA shell.
+- Reviewer flow: Draft → Submitted → Under Review → Returned/Approved.
+- Real Leaflet/OpenStreetMap GIS with privacy-safe survey popups, clustering, filters, study/project sites, concern locations, and layer controls.
+- Verified-data analytics for collection status, treatment/control coverage, districts, focus crops, key indicators, and quality flags.
+- Automatic standard report preview and PDF/DOCX export using stored data—no quantitative re-entry.
+- User profile, role, activation, password-reset, and study-assignment administration.
 
 ## Local preview
 
@@ -14,46 +27,55 @@ pnpm dev
 Open [http://localhost:3000](http://localhost:3000).
 
 - Dashboard: `/`
-- Sign in: `/login`
+- Sign in/account request: `/login`
+- Studies: `/studies`
 - Household/FPO questionnaire: `/survey/new`
 - Local drafts and sync queue: `/drafts`
 - Reviewer queue: `/review`
-- Admin master data: `/admin/master-data`
-
-Without Supabase credentials the application intentionally uses local preview mode. Questionnaire drafts and the PWA work on the device; central login, synchronization, and review activate after the setup below.
+- GIS monitoring: `/gis`
+- Results and analytics: `/analytics`
+- Automatic reports: `/reports`
+- User management: `/admin/users`
+- Master data: `/admin/master-data`
 
 ### Local role testing
 
-The login page can display one-click Administrator, Reviewer, and Enumerator test accounts when `NEXT_PUBLIC_ENABLE_TEST_LOGIN=true` is set in an ignored `.env.development.local` file. This feature is additionally restricted to the Next.js development environment, so a production build cannot activate it.
+The login page can display one-click test accounts for all five roles when `NEXT_PUBLIC_ENABLE_TEST_LOGIN=true` is set in the ignored `.env.development.local` file. This feature is restricted to the Next.js development environment; a production build cannot activate it.
 
-These test identities are for visual role and navigation testing only. They use local browser storage and cannot read, synchronize, approve, or change production Supabase data. Keep all test passwords out of committed files and use real Supabase accounts for database workflow testing.
+These identities use local browser state only. They cannot read, synchronize, approve, or change production Supabase data. Use real approved Supabase accounts for end-to-end central workflow testing.
 
 ## Supabase setup
 
 1. Create a Supabase project.
-2. Run the SQL migrations in numerical order:
-   - `supabase/migrations/0001_foundation.sql`
-   - `supabase/migrations/0002_crop_master_and_relations.sql`
-   - `supabase/migrations/0003_auth_sync_and_rls.sql`
-   - `supabase/migrations/0004_secure_admin_bootstrap.sql`
-   - `supabase/migrations/0005_role_requests_and_account_approval.sql`
-3. Copy `.env.example` to `.env.local` and insert the project's public URL and publishable key. Older projects can still use `NEXT_PUBLIC_SUPABASE_ANON_KEY` as a fallback.
+2. Run all SQL files in `supabase/migrations` in numerical order. The extended role enum is intentionally committed in migration `0006` before the multi-study schema and policies in `0007`.
+3. Copy `.env.example` to `.env.local` and add the public project URL and publishable key. Never use the service-role key in browser configuration.
 4. Restart the application and open `/login`.
-5. Use the one-time **Administrator setup** form. Choose the Administrator password in the form; the application deliberately has no hard-coded or shared default password. If email confirmation is enabled, confirm the Supabase email and then sign in.
+5. If no Administrator exists, use the one-time Administrator setup. Later users request a role and remain inactive until an Administrator approves them and assigns studies/locations.
 
-The first authenticated owner can claim the Administrator role only while no active Administrator exists. The database closes this bootstrap path permanently after the first claim. Later users request Administrator, Reviewer, or Enumerator access during registration and remain inactive until an Administrator approves the requested role from **Dashboard → Users & roles**. Row-level security prevents enumerators from viewing other enumerators' submissions and restricts review actions to Reviewer/Admin accounts.
+## Field workflow
 
-Never put the Supabase service-role key in `.env.local` or browser code.
+1. Enumerator opens an assigned published study while online at least once.
+2. The production PWA caches the field application shell and stable assets.
+3. Questionnaire answers save automatically to IndexedDB, including while offline.
+4. Closing or reloading the app does not delete the local draft; it can be reopened from **My Drafts**.
+5. Completing a survey places it in the pending-sync queue.
+6. Reconnection triggers an authenticated, duplicate-safe upload using the client-generated survey ID and server revision.
+7. Reviewer/Supervisor checks data quality, returns corrections, or approves the record.
+8. Only verified data feeds approved-result indicators and reports.
 
-## Current workflow
+## Questionnaire import workbook
 
-1. Enumerator fills the mobile questionnaire online or offline.
-2. Answers save automatically to IndexedDB on the device.
-3. Submit places the survey in the local synchronization queue.
-4. When authenticated internet access is available, the app uploads the complete versioned payload.
-5. A Reviewer/Admin starts review, returns it with a correction note, or approves it.
-6. Returned status reaches the enumerator's local drafts; the record can be corrected and resubmitted.
-7. Server revisions prevent an older local copy from silently overwriting newer central data.
+Download the template from **Studies → New study**. It supports:
+
+- `STUDY`
+- `SECTIONS`
+- `QUESTIONS`
+- `OPTIONS`
+- `SKIP_LOGIC`
+- `CALCULATIONS`
+- `MASTER_DATA_LINKS`
+
+Imports are parsed locally, validated for duplicate IDs, invalid types, missing references, circular skip logic, calculations, and master-data links, then previewed before publication. New versions preserve historical server questionnaire versions and responses.
 
 ## Verification
 
@@ -62,27 +84,25 @@ pnpm lint
 pnpm build
 ```
 
+The implementation has also been browser-tested at desktop and mobile sizes for all five role dashboards, questionnaire rendering, access restrictions, GIS layers, PDF/DOCX exports, IndexedDB draft persistence, and production offline-shell reopening.
+
 ## Key files
 
-- `src/config/questionnaires.ts` — household and FPO questionnaire definitions.
-- `src/components/survey/survey-form.tsx` — configurable field-form renderer and draft recovery.
-- `src/components/survey/focus-crop-modules.tsx` — annual crop-cycle and perennial orchard workflows.
-- `src/config/project-master.ts` — 4 districts, 16 FPOs, CBBOs, focus crops, blocks, and supplied villages.
-- `src/lib/offline-drafts.ts` — IndexedDB field storage.
-- `src/lib/survey-sync.ts` — authenticated sync, revision checks, and status refresh.
-- `src/components/auth/` — session, role, and route protection.
-- `src/components/operations/` — drafts/sync and review workspaces.
-- `public/sw.js` — offline application-shell service worker.
-- `supabase/migrations/` — schema, crop relationships, authentication trigger, and RLS policies.
-- `docs/ARCHITECTURE.md` — architecture and remaining modules.
+- `src/config/questionnaires.ts` — protected UKIHDP household and FPO definitions.
+- `src/config/project-master.ts` — districts, blocks, 16 FPOs, CBBOs, focus crops, and villages.
+- `src/components/survey/` — built-in and imported questionnaire renderers.
+- `src/components/studies/` — study catalogue, command centre, creation, import, and version editing.
+- `src/lib/offline-drafts.ts` and `src/lib/survey-sync.ts` — device storage and synchronization.
+- `src/components/gis/` — real GIS workspace and privacy-safe mapping.
+- `src/components/insights/` — analytics and automatic reports.
+- `public/sw.js` — production offline application shell and stable-asset caching.
+- `supabase/migrations/` — authentication, RLS, multi-study, profile, assignment, GIS, and questionnaire schema.
 
 ## Confirm before field deployment
 
-- Approved youth age range.
-- Official Nali conversion factor.
-- Complete non-focus crop and crop-variety masters.
-- Final indicator traceability matrix and validated benchmark-yield sources.
-- Field pilot on the actual Android devices and browsers.
-- Privacy, consent, backup, retention, and account-assignment procedures.
-
-GIS dashboards, verified-data analytics, exports, and automatic reports remain separate future modules. The current update deliberately establishes the secure collection-to-review foundation first.
+- Apply migrations `0006` and `0007` to the production Supabase project.
+- Confirm the approved youth age range and official Nali conversion factor.
+- Complete crop/variety masters, indicator traceability, and validated benchmark-yield sources.
+- Pilot on the actual Android phones in offline/poor-network locations.
+- Approve privacy, consent, backup, retention, incident-response, and account-assignment procedures.
+- Configure production hosting/domain and run an authenticated end-to-end pilot before collecting real household data.
