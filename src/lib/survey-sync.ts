@@ -25,22 +25,27 @@ function deviceId() {
 }
 
 export async function syncSurveyDraft(draft: OfflineSurveyDraft): Promise<SyncResult> {
-  if (!isSupabaseConfigured) return { draftId: draft.id, ok: false, message: "Supabase is not configured; the draft remains safely queued on this device." };
-  if (!navigator.onLine) return { draftId: draft.id, ok: false, message: "No internet connection; synchronization will be retried later." };
+  const fail = async (message: string) => {
+    await updateSurveyDraftStatus(draft.id, draft.status, draft.serverRevision, draft.reviewNote, "sync_failed", message).catch(() => undefined);
+    return { draftId: draft.id, ok: false, message } satisfies SyncResult;
+  };
+  if (!isSupabaseConfigured) return fail("Supabase is not configured; the draft remains safely queued on this device.");
+  if (!navigator.onLine) return fail("No internet connection; synchronization will be retried later.");
+  await updateSurveyDraftStatus(draft.id, draft.status, draft.serverRevision, draft.reviewNote, "syncing", "Uploading to the central database…").catch(() => undefined);
   const client = getSupabaseBrowserClient();
-  if (!client) return { draftId: draft.id, ok: false, message: "The central database client is unavailable." };
+  if (!client) return fail("The central database client is unavailable.");
   const { data: authData } = await client.auth.getUser();
   const user = authData.user;
-  if (!user) return { draftId: draft.id, ok: false, message: "Sign in before synchronizing queued surveys." };
+  if (!user) return fail("Sign in before synchronizing queued surveys.");
 
   const { data: version, error: versionError } = await client.from("questionnaire_versions").select("id").eq("code", draft.questionnaireId).eq("version", draft.questionnaireVersion).maybeSingle();
-  if (versionError || !version) return { draftId: draft.id, ok: false, message: "The matching questionnaire version is not published in Supabase." };
+  if (versionError || !version) return fail("The matching questionnaire version is not published in Supabase.");
 
   const { data: existing, error: lookupError } = await client.from("survey_submissions").select("id, revision, status").eq("client_generated_id", draft.id).maybeSingle();
-  if (lookupError) return { draftId: draft.id, ok: false, message: lookupError.message };
+  if (lookupError) return fail(lookupError.message);
   if (existing && draft.serverRevision !== undefined && existing.revision !== draft.serverRevision) {
     await client.from("sync_events").insert({ submission_id: existing.id, device_id: deviceId(), client_revision: draft.serverRevision, server_revision: existing.revision, result: "conflict", detail: { localUpdatedAt: draft.updatedAt } });
-    return { draftId: draft.id, ok: false, message: "A newer server version exists. The local record was not overwritten." };
+    return fail("A newer server version exists. The local record was not overwritten.");
   }
 
   const answers = (draft.sectionData.answers ?? {}) as Record<string, unknown>;
@@ -62,6 +67,7 @@ export async function syncSurveyDraft(draft: OfflineSurveyDraft): Promise<SyncRe
     submitted_at: new Date().toISOString(),
     revision: nextRevision,
     updated_at: new Date().toISOString(),
+    ...(draft.studyId ? { study_id: draft.studyId } : {}),
   };
 
   const savePayload = (submissionId: string) => client.from("survey_submission_payloads").upsert({
@@ -77,22 +83,22 @@ export async function syncSurveyDraft(draft: OfflineSurveyDraft): Promise<SyncRe
   // "returned". RLS intentionally blocks enumerator edits after resubmission.
   if (existing) {
     const { error: payloadError } = await savePayload(existing.id);
-    if (payloadError) return { draftId: draft.id, ok: false, message: payloadError.message };
+    if (payloadError) return fail(payloadError.message);
   }
 
   const query = existing
     ? client.from("survey_submissions").update(submission).eq("id", existing.id).select("id, revision").single()
     : client.from("survey_submissions").insert(submission).select("id, revision").single();
   const { data: saved, error: submissionError } = await query;
-  if (submissionError || !saved) return { draftId: draft.id, ok: false, message: submissionError?.message ?? "Could not create the central submission." };
+  if (submissionError || !saved) return fail(submissionError?.message ?? "Could not create the central submission.");
 
   if (!existing) {
     const { error: payloadError } = await savePayload(saved.id);
-    if (payloadError) return { draftId: draft.id, ok: false, message: payloadError.message };
+    if (payloadError) return fail(payloadError.message);
   }
 
   await client.from("sync_events").insert({ submission_id: saved.id, device_id: deviceId(), client_revision: nextRevision, server_revision: saved.revision, result: "accepted", detail: { questionnaireCode: draft.questionnaireId } });
-  await updateSurveyDraftStatus(draft.id, "submitted", saved.revision);
+  await updateSurveyDraftStatus(draft.id, "submitted", saved.revision, undefined, "synced", "Confirmed by the central database.");
   return { draftId: draft.id, ok: true, message: "Survey synchronized and submitted for review.", serverRevision: saved.revision };
 }
 

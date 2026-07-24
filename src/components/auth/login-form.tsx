@@ -12,6 +12,8 @@ type AccessMode = "sign-in" | "sign-up";
 
 const roleChoices: Array<{ role: AppRole; title: string; description: string; icon: string }> = [
   { role: "admin", title: "Administrator", description: "Manage users, master data and the complete study.", icon: "A" },
+  { role: "researcher", title: "Researcher / Study Manager", description: "Manage assigned studies, questionnaires, analytics, GIS, and reports.", icon: "M" },
+  { role: "supervisor", title: "Supervisor", description: "Coordinate assigned field teams, areas, progress, and quality follow-up.", icon: "S" },
   { role: "reviewer", title: "Reviewer", description: "Verify submissions, return corrections and approve records.", icon: "R" },
   { role: "enumerator", title: "Enumerator", description: "Collect household and field data on mobile devices.", icon: "E" },
 ];
@@ -154,13 +156,13 @@ export function LoginForm() {
     </div>
 
     <div className="login-card-heading">
-      <p className="login-kicker">UKIHDP protected access</p>
+      <p className="login-kicker">FieldFlow protected access</p>
       <h1>{heading}</h1>
       <p>{needsAdmin && isRegistration
         ? "Create the first project-owner account. You choose its password now; no public default password is used."
         : isRegistration
           ? "Select the role you need. An Administrator will review and activate your account."
-          : "Sign in with your approved UKIHDP project account."}</p>
+          : "Sign in with your approved FieldFlow platform account."}</p>
     </div>
 
     {auth.demoMode && <div className="login-warning"><strong>Local preview mode</strong><span>Authentication will activate after Supabase credentials are added.</span></div>}
@@ -169,7 +171,7 @@ export function LoginForm() {
       <div className="test-account-heading"><div><strong>Quick test accounts</strong><span>Choose a role to open its local dashboard.</span></div><b>LOCAL ONLY</b></div>
       <div className="test-account-list">
         {testAccounts.map((account) => <button type="button" key={account.role} onClick={() => loginAsTestAccount(account)}>
-          <span className={`test-role ${account.role}`}>{account.role === "admin" ? "A" : account.role === "reviewer" ? "R" : "E"}</span>
+          <span className={`test-role ${account.role}`}>{account.role === "admin" ? "A" : account.role === "researcher" ? "M" : account.role === "supervisor" ? "S" : account.role === "reviewer" ? "R" : "E"}</span>
           <div><strong>{account.displayName}</strong><small>{account.email}</small><code>{account.password}</code></div>
           <i>Open</i>
         </button>)}

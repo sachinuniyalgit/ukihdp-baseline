@@ -1,35 +1,34 @@
-# UKIHDP foundation architecture
+# FieldFlow architecture
 
-## Current scope
+## Scope
 
-This repository contains the implemented household and FPO questionnaire foundation. It contains no real respondent or household records.
+FieldFlow is a generic multi-study field-research platform with one protected built-in study: the UKIHDP baseline assessment. New studies and versioned questionnaires are configuration, not new hard-coded application pages.
 
-## Main layers
+## Layers
 
-- **Responsive application shell:** field, review, analysis, GIS, and reporting workspaces.
-- **Configurable questionnaire model:** versioned sections and questions instead of hard-coded form pages.
-- **Offline field store:** IndexedDB-backed drafts with an explicit queue status for later synchronization.
-- **PWA shell:** installable manifest and production service worker for basic application-shell availability.
-- **Focus-crop engine:** short all-crop roster, automatic FPO matching, annual crop cycles, perennial orchard profiles, calculations, and linked Sections 4-6.
-- **Controlled master data:** configurable youth definition, Nali conversion, crops, varieties, FPO mappings, and audit history.
-- **Database migrations:** Supabase/PostgreSQL-ready roles, questionnaire, submission, response, sync, crop-master, crop-cycle, and linked-response tables.
+1. **Identity and access:** Supabase Auth, complete user profiles, platform roles, active/inactive state, and study-specific assignments.
+2. **Study catalogue:** local cache plus central `studies`, questionnaire versions, assignment scope, and import history.
+3. **Questionnaire engine:** versioned sections/questions, options, skip rules, calculations, master-data links, repeat groups, and validation.
+4. **Protected UKIHDP instrument:** household baseline Sections 1–10, household–FPO linkage, quality control, and separate institutional/FPO Section 11.
+5. **Offline field layer:** production service worker, IndexedDB records, explicit sync states, reconnect processing, client-generated IDs, and revision conflict checks.
+6. **Quality workflow:** submitted, under review, returned with reason, corrected/resubmitted, and approved with audit events.
+7. **GIS:** Leaflet/OpenStreetMap, survey/study/concern layers, marker clustering, operational filters, and privacy-safe popups.
+8. **Intelligence:** study-filtered operational summaries, approved-data indicators, quality flags, and automatic PDF/DOCX reports.
 
-## Implemented operational foundation
+## Data relationships
 
-1. Supabase email/password authentication with Admin, Reviewer, and Enumerator access gates.
-2. Local draft recovery, queued submission, automatic reconnect sync, and central status refresh.
-3. Conflict-safe synchronization using client IDs and server revisions.
-4. Reviewer transitions for submitted, under-review, returned, and approved records, with review-event history.
-5. Database policies that isolate enumerator records and reserve management actions for Reviewer/Admin roles.
-6. Race-safe, one-time initial Administrator claim; later accounts request Administrator, Reviewer, or Enumerator access and remain inactive until Administrator approval.
+`Study → Questionnaire Version → Survey Submission → Versioned Payload → Review Events`
 
-## Planned modules
+`Study → User Assignment → Role + Geographic Scope + Sample Group + Active Period`
 
-1. Build privacy-protected GIS and GPS survey monitoring.
-2. Build verified-data dashboards and treatment/control analysis.
-3. Add export and automatic standard reports.
-4. Add server-managed master-data editing and user-role administration screens.
+`Study → Survey GPS / Study Location / Project Location / Concern Location → GIS Layers`
 
-## Data rule
+Questionnaire versions and submitted payloads are immutable historical references. Publishing a replacement questionnaire changes the active version for new surveys without deleting old responses.
 
-The verified database is the single source of truth. Personally identifiable information must not appear in public maps, analytical charts, or reports.
+## Privacy rule
+
+Personally identifiable respondent data is collected only where authorized and must never be exposed in GIS popups, portfolio dashboards, analytical charts, or management reports. Household coordinates require the same restricted access as the source survey.
+
+## Deployment boundary
+
+The repository is portable Next.js/React code. Supabase provides central authentication and PostgreSQL/RLS. Leaflet uses OpenStreetMap-compatible tiles. The production web host can be changed without changing the data model.

@@ -19,6 +19,18 @@ const configuredAccounts: TestAccount[] = [
     password: process.env.NEXT_PUBLIC_TEST_ADMIN_PASSWORD ?? "",
   },
   {
+    role: "researcher",
+    displayName: "Test Researcher",
+    email: process.env.NEXT_PUBLIC_TEST_RESEARCHER_EMAIL ?? "",
+    password: process.env.NEXT_PUBLIC_TEST_RESEARCHER_PASSWORD ?? "",
+  },
+  {
+    role: "supervisor",
+    displayName: "Test Supervisor",
+    email: process.env.NEXT_PUBLIC_TEST_SUPERVISOR_EMAIL ?? "",
+    password: process.env.NEXT_PUBLIC_TEST_SUPERVISOR_PASSWORD ?? "",
+  },
+  {
     role: "reviewer",
     displayName: "Test Reviewer",
     email: process.env.NEXT_PUBLIC_TEST_REVIEWER_EMAIL ?? "",

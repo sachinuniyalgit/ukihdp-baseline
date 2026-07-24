@@ -15,5 +15,5 @@ export function AccessGate({ children, roles }: { children: React.ReactNode; rol
 }
 
 function GateMessage({ title, text, action }: { title: string; text: string; action?: React.ReactNode }) {
-  return <main className="access-gate"><section><span>UKIHDP secure workspace</span><h1>{title}</h1><p>{text}</p>{action}</section></main>;
+  return <main className="access-gate"><section><span>FieldFlow secure workspace</span><h1>{title}</h1><p>{text}</p>{action}</section></main>;
 }

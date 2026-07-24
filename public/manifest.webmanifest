@@ -1,7 +1,7 @@
 {
-  "name": "UKIHDP Baseline Assessment",
-  "short_name": "UKIHDP Survey",
-  "description": "Offline-ready field data collection and baseline monitoring.",
+  "name": "FieldFlow · Field Data & Assessment Platform",
+  "short_name": "FieldFlow",
+  "description": "Offline-first multi-study field data collection, assessment, GIS, and monitoring.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f6f8fa",

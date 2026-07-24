@@ -1,4 +1,4 @@
-export type AppRole = "admin" | "reviewer" | "enumerator";
+export type AppRole = "admin" | "researcher" | "supervisor" | "reviewer" | "enumerator";
 
 export type SurveyStatus =
   | "draft"
@@ -12,9 +12,12 @@ export type QuestionInputType =
   | "text"
   | "textarea"
   | "number"
+  | "decimal"
   | "currency"
   | "year"
   | "date"
+  | "time"
+  | "datetime"
   | "phone"
   | "radio"
   | "select"
@@ -27,6 +30,9 @@ export type QuestionInputType =
   | "automatic"
   | "gps"
   | "photo"
+  | "file"
+  | "signature"
+  | "readonly"
   | "focus_crop_modules"
   | "repeat_group";
 
@@ -74,6 +80,7 @@ export interface QuestionDefinition {
     | "focus_crop_matches"
     | "crop_category"
     | "youth_status";
+  formula?: string;
   dependsOn?: string[];
   recallPeriod?: string;
   treatmentControlApplicability?: "both" | "treatment" | "control";
@@ -84,6 +91,10 @@ export interface QuestionDefinition {
     maxSelections?: number;
   };
   indicatorMapping?: string;
+  masterDataLink?: {
+    type: string;
+    filterRule?: string;
+  };
 }
 
 export interface SurveySectionDefinition {

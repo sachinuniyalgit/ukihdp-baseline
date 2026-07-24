@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { householdQuestionnaire, institutionalQuestionnaire } from "@/config/questionnaires";
+import { baselineStudy } from "@/config/studies";
 import { blocksForDistrict, findFpo, fposForLocation, projectFpos, projectMaster } from "@/config/project-master";
 import type { AdminMasterData } from "@/lib/admin-master-data";
 import { useAdminMasterData } from "@/hooks/use-admin-master-data";
@@ -123,7 +124,11 @@ export function SurveyForm() {
         id: draftId,
         questionnaireId: questionnaire.id,
         questionnaireVersion: questionnaire.version,
+        studyId: baselineStudy.id,
+        studyCode: baselineStudy.code,
+        studyName: baselineStudy.shortName,
         status: "draft",
+        syncState: "saved_locally",
         updatedAt: new Date().toISOString(),
         sectionData: { answers: responses as Record<string, unknown> },
       }).then(() => setSaveState("saved")).catch(() => setSaveState("error"));
@@ -252,6 +257,9 @@ export function SurveyForm() {
         id: draftId,
         questionnaireId: questionnaire.id,
         questionnaireVersion: questionnaire.version,
+        studyId: baselineStudy.id,
+        studyCode: baselineStudy.code,
+        studyName: baselineStudy.shortName,
         status: "draft",
         updatedAt: new Date().toISOString(),
         sectionData: { answers: responses as Record<string, unknown> },
